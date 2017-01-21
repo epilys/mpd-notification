@@ -19,3 +19,5 @@ static const char *strunknown = "(unknown)";
 /* Notification urgency */
 static NotifyUrgency urgency = NOTIFY_URGENCY_LOW;
 
+/* Standard album art filename */
+static const char *cover_filename = "/folder.jpg";

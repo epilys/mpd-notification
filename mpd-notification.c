@@ -11,6 +11,9 @@
 #include <mpd/client.h>
 #include <libnotify/notify.h>
 #include <glib.h>
+// dirname
+#include <libgen.h>
+
 
 /* Macro definitions */
 /* Get array length on compile time */
@@ -52,6 +55,35 @@ get_mpd_song_tag(const struct mpd_song *song, enum mpd_tag_type type)
 	}
 
 	return tag;
+}
+
+/* Look for a cover file in the song's folder */
+GdkPixbuf *
+get_mpd_song_cover(const struct mpd_song *song) {
+	const char *path = NULL;
+	path = mpd_song_get_uri(song);
+	if (path == NULL) {
+		return NULL;
+	}
+	const char *dir = NULL;
+	dir = dirname(path);
+	if (dir == NULL) {
+		return NULL;
+	}
+	char buf[strlen(dir)+strlen(cover_filename)+1];
+	strlcpy(buf, dir, sizeof(buf));
+	strlcat(buf, cover_filename, sizeof(buf));
+	/* Check if cover file exists. */
+	if( access(buf, F_OK ) != -1 ) {
+		GError *error = NULL;
+		GdkPixbuf * cover = gdk_pixbuf_new_from_file (buf, &error);
+		if (cover == NULL) {
+			//don't bother checking what happened
+			return NULL;
+		}
+		return cover;
+	} 	
+	return NULL;
 }
 
 /* Retrives the current status of mpd */
@@ -304,7 +336,11 @@ main(int argc, char *argv[])
 				notification_body_escaped = g_markup_escape_text(notification_body, -1);
 				free(notification_body);
 			}
-
+			GdkPixbuf * cover = get_mpd_song_cover(song);
+			if (cover) {
+				notify_notification_set_image_from_pixbuf(notification, cover);
+				g_object_unref(G_OBJECT(cover));
+			}
 
 			notify_notification_update(notification, notification_head_escaped, notification_body_escaped, NULL);
 			if (!show_notify_notification(notification)) {
@@ -313,7 +349,8 @@ main(int argc, char *argv[])
 
 			g_free(notification_head_escaped);
 			g_free(notification_body_escaped);
-
+			
+			notify_notification_set_image_from_pixbuf(notification, NULL);
 		free:
 			mpd_song_free(song);
 		}
